@@ -1,0 +1,62 @@
+# This is a basic workflow to help you get started with Actions
+name: Terraform Plan
+
+# Controls when the workflow will run
+on:
+  pull_request:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+    
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  Plan:
+    # The type of runner that the job will run on
+    runs-on: [ "229685449397" ]
+    env:
+      GITHUB_TOKEN: "${{ secrets.GH_TOKEN }}"
+      GITHUB_OWNER: CSVD
+      GITHUB_BASE_URL: https://github.e.it.census.gov
+      TF_WORKSPACE: ${{ vars.terraform_workspace }}
+      TF_CLI_ARGS_plan: -lock-timeout=30m
+      TF_CLI_ARGS_apply: -lock-timeout=30m
+      
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v3
+
+      - uses: CSVD/gh-actions-setup-node@v3
+        with:
+           node-version: 16
+          
+      - name: blow up .terraform
+        run: rm -rf ${{ github.workspace }}/.terraform || echo "nope"
+        
+      - name: Setup AWS Credentials
+        id: aws_credentials
+        run: |
+          curl -qL -o aws_credentials.json http://169.254.170.2/${AWS_CONTAINER_CREDENTIALS_RELATIVE_URI} > aws_credentials.json
+          aws configure set aws_access_key_id `jq -r '.AccessKeyId' aws_credentials.json`
+          echo AWS_ACCESS_KEY_ID=`jq -r '.AccessKeyId' aws_credentials.json` >> $GITHUB_ENV
+          aws configure set aws_secret_access_key `jq -r '.SecretAccessKey' aws_credentials.json`
+          echo AWS_SECRET_ACCESS_KEY=`jq -r '.SecretAccessKey' aws_credentials.json` >> $GITHUB_ENV
+          aws configure set aws_session_token `jq -r '.Token' aws_credentials.json`
+          echo AWS_SESSION_TOKEN=`jq -r '.Token' aws_credentials.json` >> $GITHUB_ENV
+          
+      - name: Terraform Init
+        id: init
+        run: /opt/tfenv/bin/terraform init -upgrade
+
+      - name: Terraform Validate
+        id: validate
+        run: /opt/tfenv/bin/terraform validate
+
+      - name: Terraform Plan
+        id: plan
+        run: /opt/tfenv/bin/terraform plan -var-file=varfiles/${{ vars.terraform_workspace }}.tfvars
+        
+#       - name: Terraform Apply
+#         id: plan
+#         run: /opt/tfenv/bin/terraform apply -auto-approve -var-file=varfiles/${{ vars.terraform_workspace }}.tfvars
+#         continue-on-error: true
