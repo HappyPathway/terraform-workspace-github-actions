@@ -15,8 +15,8 @@ jobs:
     runs-on: [ "229685449397" ]
     env:
       GITHUB_TOKEN: "${{ secrets.GH_TOKEN }}"
-      GITHUB_OWNER: CSVD
-      GITHUB_BASE_URL: https://github.e.it.census.gov
+      GITHUB_OWNER: ${{ github.repository_owner }}
+      GITHUB_BASE_URL: ${{ github.server_url }}
       TF_WORKSPACE: ${{ vars.terraform_workspace }}
       TF_CLI_ARGS_plan: -lock-timeout=30m
       TF_CLI_ARGS_apply: -lock-timeout=30m
@@ -25,14 +25,7 @@ jobs:
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v3
-
-      - uses: CSVD/gh-actions-setup-node@v3
-        with:
-           node-version: 16
-          
-      - name: blow up .terraform
-        run: rm -rf ${{ github.workspace }}/.terraform || echo "nope"
-        
+      
       - name: Setup AWS Credentials
         id: aws_credentials
         run: |
